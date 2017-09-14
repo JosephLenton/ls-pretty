@@ -18,7 +18,7 @@ mod print;
 /// We pre-allocate a vector to hold all files and directories found.
 /// This is how big it will be.
 /// 
-const INITIAL_CAPACITY : usize = 20;
+const INITIAL_CAPACITY : usize = 750;
 
 fn main() {
     match run( & Args::new_from_args() ) {

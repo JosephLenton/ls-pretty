@@ -1,4 +1,14 @@
 
+//!
+//! ls-pretty
+//!
+//! A prettier version of ls.
+//!
+
+#![warn(missing_docs)]
+#![warn(unused_extern_crates)]
+#![warn(unused_import_braces)]
+
 use std::io::Result;
 use std::path::Path;
 use std::fs::read_dir;

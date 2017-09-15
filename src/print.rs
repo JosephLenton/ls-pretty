@@ -4,14 +4,50 @@ use std::cmp::max;
 
 use args::Args;
 
+/// 
+/// print_dirs_files takes lots of arguments. So to make it a little easier to
+/// read, this struct is created as a way to hold them.
+///
 pub struct PrintDirsFilesOptions<'a> {
+
+    /// 
+    /// The arguments which were passed to the main application.
+    ///
     pub args : &'a Args,
+
+    /// 
+    /// What to print at the start of each line.
+    ///
     pub indent : &'static str,
+
+    /// 
+    /// The width for the directory column.
+    ///
+    /// Note this isn't advised, or minimum, or anything like that.
+    /// This is the actual width it will use.
+    /// 
     pub dirs_width : usize,
+
+    /// 
+    /// An end of line seperated list of directories.
+    ///
     pub dirs  : String,
+
+    /// 
+    /// An end of line seperated list of files.
+    ///
     pub files : String,
+
 }
 
+/// 
+/// Prints the list of directories, and list of files, given.
+/// They are printed in two columns.
+///
+/// # Arguments
+///
+///  * `options` The options detailing what to print, and how.
+///
 pub fn print_dirs_files<'a>(
     options : PrintDirsFilesOptions<'a>,
 ) -> Result<()> {

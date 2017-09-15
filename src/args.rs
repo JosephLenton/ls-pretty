@@ -30,8 +30,13 @@ pub struct Args {
 }
 
 impl Args {
+    
+    /// 
+    /// Builds a new args from the main arguments given.
+    ///
     pub fn new_from_args() -> Args {
         return Args::from_args();
     }
+
 }
 

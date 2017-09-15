@@ -37,6 +37,9 @@ fn main() {
     }
 }
 
+/// 
+/// This is the real main. It runs, and returns any errors.
+/// 
 fn run<'a>(
     args : &'a Args,
 ) -> Result<()> {

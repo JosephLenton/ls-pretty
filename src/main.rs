@@ -24,10 +24,10 @@ use print::PrintDirsFilesOptions;
 mod args;
 mod print;
 
-/// 
+///
 /// We pre-allocate a vector to hold all files and directories found.
 /// This is how big it will be.
-/// 
+///
 const INITIAL_CAPACITY : usize = 750;
 
 fn main() {
@@ -37,9 +37,9 @@ fn main() {
     }
 }
 
-/// 
+///
 /// This is the real main. It runs, and returns any errors.
-/// 
+///
 fn run<'a>(
     args : &'a Args,
 ) -> Result<()> {
@@ -81,7 +81,7 @@ fn run<'a>(
 
     // format files into string
     // output
-    
+
     Ok(())
 }
 

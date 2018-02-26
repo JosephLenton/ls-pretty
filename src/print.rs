@@ -1,46 +1,49 @@
 
-use std::io::Result;
 use std::cmp::max;
-
+use std::io::{self, Result, Write};
 use args::Args;
 
-/// 
+///
 /// print_dirs_files takes lots of arguments. So to make it a little easier to
 /// read, this struct is created as a way to hold them.
 ///
 pub struct PrintDirsFilesOptions<'a> {
 
-    /// 
+    ///
     /// The arguments which were passed to the main application.
     ///
     pub args : &'a Args,
 
-    /// 
+    ///
     /// What to print at the start of each line.
     ///
     pub indent : &'static str,
 
-    /// 
+    ///
     /// The width for the directory column.
     ///
     /// Note this isn't advised, or minimum, or anything like that.
     /// This is the actual width it will use.
-    /// 
+    ///
     pub dirs_width : usize,
 
-    /// 
+    ///
     /// An end of line seperated list of directories.
     ///
     pub dirs  : String,
 
-    /// 
+    ///
     /// An end of line seperated list of files.
     ///
     pub files : String,
 
 }
 
-/// 
+/// The initial size of the out buffer.
+/// This is the size needed to print ~/projects/ on my PC.
+const OUT_BUFFER_CAPACITY : usize = 5500;
+
+///
 /// Prints the list of directories, and list of files, given.
 /// They are printed in two columns.
 ///
@@ -51,6 +54,8 @@ pub struct PrintDirsFilesOptions<'a> {
 pub fn print_dirs_files<'a>(
     options : PrintDirsFilesOptions<'a>,
 ) -> Result<()> {
+    let mut out_buffer = String::with_capacity( OUT_BUFFER_CAPACITY );
+
     let include_hidden = options.args.all;
     let dirs  = options.dirs;
     let files = options.files;
@@ -62,7 +67,7 @@ pub fn print_dirs_files<'a>(
     let mut i = 0;
     let mut is_print_started = false;
 
-    println!( "" );
+    out_buffer += &"\n";
     while let Some(c) = dirs_chars.next() {
         if ! is_print_started {
             if c == '.' {
@@ -76,20 +81,22 @@ pub fn print_dirs_files<'a>(
                     continue;
                 }
 
-                print!( "{}\x1b[38;2;140;85;24m", options.indent );
+                out_buffer += &options.indent;
+                out_buffer += "\x1b[38;2;140;85;24m";
             } else {
-                print!( "{}\x1b[38;2;230;115;10m", options.indent );
+                out_buffer += &options.indent;
+                out_buffer += "\x1b[38;2;230;115;10m";
             }
 
             is_print_started = true
         }
 
         if c == '\n' {
-            print!( "\x1b[0m" );
+            out_buffer += "\x1b[0m";
 
             // Write out the padding after the character.
             for _ in 0 .. (dirs_width-i) {
-                print!( " " );
+                out_buffer += " ";
             }
 
             is_print_started = false;
@@ -106,9 +113,9 @@ pub fn print_dirs_files<'a>(
                             continue;
                         }
 
-                        print!( "\x1b[38;2;30;150;30m" );
+                        out_buffer += "\x1b[38;2;30;150;30m";
                     } else {
-                        print!( "\x1b[38;2;60;230;60m" );
+                        out_buffer += "\x1b[38;2;60;230;60m";
                     }
 
                     is_print_started = true
@@ -118,23 +125,23 @@ pub fn print_dirs_files<'a>(
                     break;
                 }
 
-                print!( "{}", c );
+                out_buffer.push( c );
             }
 
-            print!( "\x1b[0m" );
-            print!( "\n" );
+            out_buffer += "\x1b[0m";
+            out_buffer += "\n";
 
             i = 0;
             is_print_started = false
         } else {
-            print!( "{}", c );
+            out_buffer.push( c );
 
             i = i + 1;
         }
     }
 
     if is_print_started {
-        print!( "\x1b[0m" );
+        out_buffer += "\x1b[0m";
     }
 
     // Print any remaining files.
@@ -152,36 +159,36 @@ pub fn print_dirs_files<'a>(
                 }
             }
 
-            print!( "{}", options.indent );
+            out_buffer += & options.indent;
 
             // Write out the padding after the character.
             for _ in 0 .. dirs_width {
-                print!( " " );
+                out_buffer += " ";
             }
 
             if c == '.' {
-                print!( "\x1b[38;2;30;150;30m" );
+                out_buffer += "\x1b[38;2;30;150;30m";
             } else {
-                print!( "\x1b[38;2;60;230;60m" );
+                out_buffer += "\x1b[38;2;60;230;60m";
             }
 
             is_print_started = true;
         }
 
         if c == '\n' {
-            print!( "\x1b[0m" );
+            out_buffer += "\x1b[0m";
             is_print_started = false;
         }
 
-        print!( "{}", c );
+        out_buffer.push( c );
     }
 
     if is_print_started {
-        print!( "\x1b[0m" );
+        out_buffer += "\x1b[0m";
     }
 
-    print!( "\n" );
+    out_buffer += "\n";
 
-    Ok(())
+    io::stdout().write_all(out_buffer.as_bytes())
 }
 

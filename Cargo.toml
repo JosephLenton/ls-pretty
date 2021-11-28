@@ -3,10 +3,12 @@ name = "ls-pretty"
 version = "0.1.0"
 publish = false
 authors = ["joseph.lenton@askattest.com <joseph.lenton@askattest.com>"]
+edition = "2018"
 
 [dependencies]
 structopt = "0.2.4"
 structopt-derive = "0.2.4"
+itertools = "0.10.1"
 
 [profile.release]
 codegen-units = 1

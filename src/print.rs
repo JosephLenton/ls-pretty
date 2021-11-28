@@ -1,19 +1,15 @@
-
-use std::cmp::max;
-use std::io::{self, Result, Write};
-use args::Args;
+use ::std::io::{self, Result, Write};
+use ::std::fs::DirEntry;
+use ::itertools::{
+    Itertools,
+    EitherOrBoth,
+};
 
 ///
 /// print_dirs_files takes lots of arguments. So to make it a little easier to
 /// read, this struct is created as a way to hold them.
 ///
-pub struct PrintDirsFilesOptions<'a> {
-
-    ///
-    /// The arguments which were passed to the main application.
-    ///
-    pub args : &'a Args,
-
+pub struct PrintDirsFilesOptions {
     ///
     /// What to print at the start of each line.
     ///
@@ -22,26 +18,19 @@ pub struct PrintDirsFilesOptions<'a> {
     ///
     /// The width for the directory column.
     ///
-    /// Note this isn't advised, or minimum, or anything like that.
-    /// This is the actual width it will use.
-    ///
     pub dirs_width : usize,
 
-    ///
-    /// An end of line seperated list of directories.
-    ///
-    pub dirs  : String,
-
-    ///
-    /// An end of line seperated list of files.
-    ///
-    pub files : String,
-
+    pub directory_names : Vec<DirEntry>,
+    pub file_names : Vec<DirEntry>,
 }
 
-/// The initial size of the out buffer.
-/// This is the size needed to print ~/projects/ on my PC.
-const OUT_BUFFER_CAPACITY : usize = 5500;
+const HIDDEN_DIRECTORY_COLOUR : &str = "\x1b[38;2;140;85;24m";
+const STANDARD_DIRECTORY_COLOUR : &str = "\x1b[38;2;230;115;10m";
+
+const HIDDEN_FILE_COLOUR : &str = "\x1b[38;2;30;150;30m";
+const STANDARD_FILE_COLOUR : &str = "\x1b[38;2;60;230;60m";
+
+const RESET_COLOUR : &str = "\x1b[0m";
 
 ///
 /// Prints the list of directories, and list of files, given.
@@ -51,144 +40,106 @@ const OUT_BUFFER_CAPACITY : usize = 5500;
 ///
 ///  * `options` The options detailing what to print, and how.
 ///
-pub fn print_dirs_files<'a>(
-    options : PrintDirsFilesOptions<'a>,
+pub fn print_dirs_files(
+    options : PrintDirsFilesOptions,
 ) -> Result<()> {
-    let mut out_buffer = String::with_capacity( OUT_BUFFER_CAPACITY );
+    let stdout = io::stdout();
+    let mut out = stdout.lock();
 
-    let include_hidden = options.args.all;
-    let dirs  = options.dirs;
-    let files = options.files;
-    let dirs_width = max( options.dirs_width, options.args.dirs_width );
-
-    let mut files_chars = files.chars();
-    let mut dirs_chars = dirs.chars();
-
-    let mut i = 0;
-    let mut is_print_started = false;
-
-    out_buffer += &"\n";
-    while let Some(c) = dirs_chars.next() {
-        if ! is_print_started {
-            if c == '.' {
-                if ! include_hidden {
-                    while let Some(c) = dirs_chars.next() {
-                        if c == '\n' {
-                            break;
-                        }
-                    }
-
-                    continue;
-                }
-
-                out_buffer += &options.indent;
-                out_buffer += "\x1b[38;2;140;85;24m";
-            } else {
-                out_buffer += &options.indent;
-                out_buffer += "\x1b[38;2;230;115;10m";
-            }
-
-            is_print_started = true
-        }
-
-        if c == '\n' {
-            out_buffer += "\x1b[0m";
-
-            // Write out the padding after the character.
-            for _ in 0 .. (dirs_width-i) {
-                out_buffer += " ";
-            }
-
-            is_print_started = false;
-            while let Some(c) = files_chars.next() {
-                if ! is_print_started {
-                    if c == '.' {
-                        if ! include_hidden {
-                            while let Some(c) = files_chars.next() {
-                                if c == '\n' {
-                                    break;
-                                }
-                            }
-
-                            continue;
-                        }
-
-                        out_buffer += "\x1b[38;2;30;150;30m";
-                    } else {
-                        out_buffer += "\x1b[38;2;60;230;60m";
-                    }
-
-                    is_print_started = true
-                }
-
-                if c == '\n' {
-                    break;
-                }
-
-                out_buffer.push( c );
-            }
-
-            out_buffer += "\x1b[0m";
-            out_buffer += "\n";
-
-            i = 0;
-            is_print_started = false
-        } else {
-            out_buffer.push( c );
-
-            i = i + 1;
-        }
+    for pair in options.directory_names.into_iter().zip_longest(options.file_names) {
+        write!(out, "{}", options.indent)?;
+        print_pair(&mut out, pair, options.dirs_width)?;
+        writeln!(out, "")?;
     }
 
-    if is_print_started {
-        out_buffer += "\x1b[0m";
-    }
+    write!(out, "{}", RESET_COLOUR)?;
 
-    // Print any remaining files.
-    while let Some(c) = files_chars.next() {
-        if ! is_print_started {
-            if c == '.' {
-                if ! include_hidden {
-                    while let Some(c) = files_chars.next() {
-                        if c == '\n' {
-                            break;
-                        }
-                    }
-
-                    continue;
-                }
-            }
-
-            out_buffer += & options.indent;
-
-            // Write out the padding after the character.
-            for _ in 0 .. dirs_width {
-                out_buffer += " ";
-            }
-
-            if c == '.' {
-                out_buffer += "\x1b[38;2;30;150;30m";
-            } else {
-                out_buffer += "\x1b[38;2;60;230;60m";
-            }
-
-            is_print_started = true;
-        }
-
-        if c == '\n' {
-            out_buffer += "\x1b[0m";
-            is_print_started = false;
-        }
-
-        out_buffer.push( c );
-    }
-
-    if is_print_started {
-        out_buffer += "\x1b[0m";
-    }
-
-    out_buffer += "\n";
-
-    io::stdout().write_all(out_buffer.as_bytes())
+    Ok(())
 }
 
+fn print_pair(
+    out: &mut dyn Write,
+    pair: EitherOrBoth<DirEntry, DirEntry>,
+    dirs_width: usize,
+) -> Result<()> {
+    match pair {
+        EitherOrBoth::Both(directory, file) => {
+            print_directory(out, directory, dirs_width)?;
+            print_file(out, file)?;
+        },
+        EitherOrBoth::Left(directory) => {
+            print_directory(out, directory, 0)?;
+        },
+        EitherOrBoth::Right(file) => {
+            print_padding(out, dirs_width)?;
+            print_file(out, file)?;
+        },
+    }
+
+    Ok(())
+}
+
+fn print_directory(
+    out: &mut dyn Write,
+    entry: DirEntry,
+    min_width: usize,
+) -> Result<()> {
+    print_entry_with_padding(
+        out,
+        entry,
+        HIDDEN_DIRECTORY_COLOUR,
+        STANDARD_DIRECTORY_COLOUR,
+        min_width,
+    )?;
+
+    Ok(())
+}
+
+fn print_file(
+    out: &mut dyn Write,
+    entry: DirEntry,
+) -> Result<()> {
+    print_entry_with_padding(
+        out,
+        entry,
+        HIDDEN_FILE_COLOUR,
+        STANDARD_FILE_COLOUR,
+        0,
+    )?;
+
+    Ok(())
+}
+
+fn print_entry_with_padding(
+    out: &mut dyn Write,
+    entry: DirEntry,
+    hidden_colour: &'static str,
+    standard_colour: &'static str,
+    width: usize,
+) -> Result<()> {
+    let file_name = & entry.file_name();
+    let file_name_str = & file_name.to_str().unwrap();
+
+    if is_hidden_file(file_name_str) {
+        write!(out, "{}{:width$}", hidden_colour, file_name_str, width = width)?;
+    } else {
+        write!(out, "{}{:width$}", standard_colour, file_name_str, width = width)?;
+    }
+
+    Ok(())
+}
+
+fn print_padding(
+    out: &mut dyn Write,
+    width: usize,
+) -> Result<()> {
+    write!(out, "{:width$}", "", width = width)?;
+
+    Ok(())
+}
+
+pub fn is_hidden_file(
+    file_name: &str,
+) -> bool {
+    file_name.chars().next() == Some('.')
+}

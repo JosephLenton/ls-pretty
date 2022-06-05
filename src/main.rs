@@ -4,41 +4,30 @@
 //! A prettier version of ls.
 //!
 
-#![warn(missing_docs)]
-#![warn(unused_extern_crates)]
+#![deny(unused_extern_crates)]
 #![warn(unused_import_braces)]
 
+mod args;
+mod dir_entry_kept_state;
+mod palette;
+mod print;
+mod utils;
+
 use ::std::cmp::Ordering;
-use ::std::fs::metadata;
 use ::std::fs::read_dir;
 use ::std::fs::DirEntry;
-use ::std::io::Result;
+use ::std::io::Result as IOResult;
 use ::std::path::Path;
 
 use crate::args::Args;
-use crate::print::is_hidden_os_file;
 use crate::print::print_dirs_files;
 use crate::print::PrintDirsFilesOptions;
 
-mod palette;
-use self::palette::*;
+use crate::dir_entry_kept_state::dir_entry_kept_state;
+use crate::dir_entry_kept_state::DirEntryKeptState;
 
-mod args;
-mod print;
-
-fn main() {
-    match run(&Args::new_from_args()) {
-        Ok(_) => {}
-        Err(err) => {
-            panic!("{}", err)
-        }
-    }
-}
-
-///
-/// This is the real main. It runs, and returns any errors.
-///
-fn run<'a>(args: &'a Args) -> Result<()> {
+fn main() -> IOResult<()> {
+    let args = Args::new_from_args();
     let path = Path::new(&args.path);
     let mut file_names: Vec<DirEntry> = vec![];
     let mut directory_names: Vec<DirEntry> = vec![];
@@ -47,7 +36,7 @@ fn run<'a>(args: &'a Args) -> Result<()> {
     for file in read_dir(path)? {
         let file = file?;
 
-        match get_file_kept(args, &file) {
+        match dir_entry_kept_state(&args, &file) {
             Some(DirEntryKeptState::File) => {
                 file_names.push(file);
             }
@@ -63,47 +52,12 @@ fn run<'a>(args: &'a Args) -> Result<()> {
 
     print_dirs_files(PrintDirsFilesOptions {
         indent: "    ",
-        dirs_width: directory_name_output_width(args, &directory_names),
+        dirs_width: directory_name_output_width(&args, &directory_names),
         file_names,
         directory_names,
     })?;
 
     Ok(())
-}
-
-#[derive(Copy, Clone, PartialEq, Debug)]
-enum DirEntryKeptState {
-    File,
-    Dir,
-}
-
-fn get_file_kept<'a>(args: &'a Args, file: &DirEntry) -> Option<DirEntryKeptState> {
-    let file_name = &file.file_name();
-
-    // Skip if we aren't included hidden files.
-    if is_hidden_os_file(file_name) && !args.all {
-        return None;
-    }
-
-    let file_type = &file.file_type().unwrap();
-    if file_type.is_symlink() {
-        let meta = metadata(file.path()).unwrap();
-
-        if meta.is_dir() {
-            Some(DirEntryKeptState::Dir)
-        } else if meta.is_file() {
-            Some(DirEntryKeptState::File)
-        } else {
-            None
-        }
-    } else if file_type.is_dir() {
-        Some(DirEntryKeptState::Dir)
-    } else if file_type.is_file() {
-        Some(DirEntryKeptState::File)
-    } else {
-        // This will be something weird.
-        None
-    }
 }
 
 fn file_name_sort(a: &DirEntry, b: &DirEntry) -> Ordering {

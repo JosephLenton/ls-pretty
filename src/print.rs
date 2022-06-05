@@ -1,11 +1,15 @@
-use ::itertools::{EitherOrBoth, Itertools};
+use ::itertools::EitherOrBoth;
+use ::itertools::Itertools;
 use ::std::ffi::OsStr;
 use ::std::fs::DirEntry;
-use ::std::io::{self, Result, Write};
+use ::std::io::stdout;
+use ::std::io::Result as IOResult;
+use ::std::io::Write;
 
-use crate::Palette;
-use crate::DIRECTORIES_PALETTE;
-use crate::FILES_PALETTE;
+use crate::palette::Palette;
+use crate::palette::DIRECTORIES_PALETTE;
+use crate::palette::FILES_PALETTE;
+use crate::utils::is_hidden_os_file;
 
 ///
 /// print_dirs_files takes lots of arguments. So to make it a little easier to
@@ -36,8 +40,8 @@ const RESET_COLOUR: &str = "\x1b[0m";
 ///
 ///  * `options` The options detailing what to print, and how.
 ///
-pub fn print_dirs_files(options: PrintDirsFilesOptions) -> Result<()> {
-    let stdout = io::stdout();
+pub fn print_dirs_files(options: PrintDirsFilesOptions) -> IOResult<()> {
+    let stdout = stdout();
     let mut out = stdout.lock();
 
     for pair in options
@@ -59,7 +63,7 @@ fn print_pair(
     out: &mut dyn Write,
     pair: EitherOrBoth<DirEntry, DirEntry>,
     dirs_width: usize,
-) -> Result<()> {
+) -> IOResult<()> {
     match pair {
         EitherOrBoth::Both(directory, file) => {
             print_directory(out, directory, dirs_width)?;
@@ -77,13 +81,13 @@ fn print_pair(
     Ok(())
 }
 
-fn print_directory(out: &mut dyn Write, entry: DirEntry, min_width: usize) -> Result<()> {
+fn print_directory(out: &mut dyn Write, entry: DirEntry, min_width: usize) -> IOResult<()> {
     print_entry_with_padding(out, entry, DIRECTORIES_PALETTE, min_width)?;
 
     Ok(())
 }
 
-fn print_file(out: &mut dyn Write, entry: DirEntry) -> Result<()> {
+fn print_file(out: &mut dyn Write, entry: DirEntry) -> IOResult<()> {
     print_entry_with_padding(out, entry, FILES_PALETTE, 0)?;
 
     Ok(())
@@ -94,23 +98,23 @@ fn print_entry_with_padding(
     entry: DirEntry,
     palette: Palette,
     width: usize,
-) -> Result<()> {
+) -> IOResult<()> {
     let file_name = &entry.file_name();
     let file_name_str = &file_name.to_str().unwrap();
 
-    let colour = calculate_colour(palette, &entry, &file_name_str);
+    let colour = calculate_colour(palette, &entry, &file_name);
     write!(out, "{}{:width$}", colour, file_name_str, width = width)?;
 
     Ok(())
 }
 
-fn calculate_colour(palette: Palette, entry: &DirEntry, file_name_str: &str) -> &'static str {
+fn calculate_colour(palette: Palette, entry: &DirEntry, file_name: &OsStr) -> &'static str {
     let is_sym_link = entry
         .file_type()
         .map(|file_type| file_type.is_symlink())
         .ok()
         .unwrap_or(false);
-    let is_hidden = is_hidden_file(file_name_str);
+    let is_hidden = is_hidden_os_file(file_name);
 
     match (is_sym_link, is_hidden) {
         (true, true) => &palette.hidden_symlink_colour,
@@ -120,16 +124,8 @@ fn calculate_colour(palette: Palette, entry: &DirEntry, file_name_str: &str) -> 
     }
 }
 
-fn print_padding(out: &mut dyn Write, width: usize) -> Result<()> {
+fn print_padding(out: &mut dyn Write, width: usize) -> IOResult<()> {
     write!(out, "{:width$}", "", width = width)?;
 
     Ok(())
-}
-
-pub fn is_hidden_os_file(file_name: &OsStr) -> bool {
-    file_name.to_str().map(is_hidden_file).unwrap_or(false)
-}
-
-pub fn is_hidden_file(file_name: &str) -> bool {
-    file_name.chars().next() == Some('.')
 }

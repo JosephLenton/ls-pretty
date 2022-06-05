@@ -1,9 +1,14 @@
 use ::std::io::{self, Result, Write};
 use ::std::fs::DirEntry;
+use ::std::ffi::OsStr;
 use ::itertools::{
     Itertools,
     EitherOrBoth,
 };
+
+use crate::DIRECTORIES_PALETTE;
+use crate::FILES_PALETTE;
+use crate::Palette;
 
 ///
 /// print_dirs_files takes lots of arguments. So to make it a little easier to
@@ -23,12 +28,6 @@ pub struct PrintDirsFilesOptions {
     pub directory_names : Vec<DirEntry>,
     pub file_names : Vec<DirEntry>,
 }
-
-const HIDDEN_DIRECTORY_COLOUR : &str = "\x1b[38;2;140;85;24m";
-const STANDARD_DIRECTORY_COLOUR : &str = "\x1b[38;2;230;115;10m";
-
-const HIDDEN_FILE_COLOUR : &str = "\x1b[38;2;30;150;30m";
-const STANDARD_FILE_COLOUR : &str = "\x1b[38;2;60;230;60m";
 
 const RESET_COLOUR : &str = "\x1b[0m";
 
@@ -87,8 +86,7 @@ fn print_directory(
     print_entry_with_padding(
         out,
         entry,
-        HIDDEN_DIRECTORY_COLOUR,
-        STANDARD_DIRECTORY_COLOUR,
+        DIRECTORIES_PALETTE,
         min_width,
     )?;
 
@@ -102,8 +100,7 @@ fn print_file(
     print_entry_with_padding(
         out,
         entry,
-        HIDDEN_FILE_COLOUR,
-        STANDARD_FILE_COLOUR,
+        FILES_PALETTE,
         0,
     )?;
 
@@ -113,20 +110,28 @@ fn print_file(
 fn print_entry_with_padding(
     out: &mut dyn Write,
     entry: DirEntry,
-    hidden_colour: &'static str,
-    standard_colour: &'static str,
+    palette: Palette,
     width: usize,
 ) -> Result<()> {
     let file_name = & entry.file_name();
     let file_name_str = & file_name.to_str().unwrap();
 
-    if is_hidden_file(file_name_str) {
-        write!(out, "{}{:width$}", hidden_colour, file_name_str, width = width)?;
-    } else {
-        write!(out, "{}{:width$}", standard_colour, file_name_str, width = width)?;
-    }
+    let colour = calculate_colour(palette, &entry, &file_name_str);
+    write!(out, "{}{:width$}", colour, file_name_str, width = width)?;
 
     Ok(())
+}
+
+fn calculate_colour(palette: Palette, entry: &DirEntry, file_name_str: &str) -> &'static str {
+    let is_sym_link = entry.file_type().map(|file_type| file_type.is_symlink()).ok().unwrap_or(false);
+    let is_hidden = is_hidden_file(file_name_str);
+
+    match (is_sym_link, is_hidden) {
+        (true, true) => &palette.hidden_symlink_colour,
+        (true, false) => &palette.standard_symlink_colour,
+        (false, true) => &palette.hidden_colour,
+        (false, false) => &palette.standard_colour,
+    }
 }
 
 fn print_padding(
@@ -136,6 +141,12 @@ fn print_padding(
     write!(out, "{:width$}", "", width = width)?;
 
     Ok(())
+}
+
+pub fn is_hidden_os_file(
+    file_name: &OsStr,
+) -> bool {
+    file_name.to_str().map(is_hidden_file).unwrap_or(false)
 }
 
 pub fn is_hidden_file(

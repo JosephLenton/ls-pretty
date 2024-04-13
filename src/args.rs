@@ -1,4 +1,4 @@
-use ::structopt::StructOpt;
+use ::clap::Parser;
 
 ///
 /// The structure of the commands for the app.
@@ -10,28 +10,28 @@ use ::structopt::StructOpt;
 /// all of our arguments. Commands are then parsed, and then
 /// turned into this struct.
 ///
-#[derive(StructOpt, Debug)]
-#[structopt(name = "ls-pretty", about = "Like ls, but pretty.")]
+#[derive(Parser, Debug)]
+#[command(name = "ls-pretty", about = "Like ls, but pretty.")]
 pub struct Args {
     /// Enable logging, use multiple `v`s to increase verbosity.
-    #[structopt(
-        short = "a",
+    #[arg(
+        short,
         long = "all",
         help = "Set to show all hidden files and directories."
     )]
     pub all: bool,
 
     /// Set the minimum width of the directory column.
-    #[structopt(
+    #[arg(
         default_value = "0",
-        short = "d",
+        short,
         long = "directory-width",
         help = "Minimum width of the directory column."
     )]
     pub dirs_width: usize,
 
     /// Optional path to the folder we are going to perform the list on.
-    #[structopt(
+    #[arg(
         default_value = ".",
         help = "Set to show all hidden files and directories."
     )]
@@ -43,6 +43,6 @@ impl Args {
     /// Builds a new args from the main arguments given.
     ///
     pub fn new_from_args() -> Args {
-        return Args::from_args();
+        return Args::parse();
     }
 }

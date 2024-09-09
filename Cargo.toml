@@ -6,8 +6,8 @@ authors = ["joseph.lenton@askattest.com <joseph.lenton@askattest.com>"]
 edition = "2021"
 
 [dependencies]
-clap = { version = "4.5.4", features = ["derive"] }
-itertools = "0.12.1"
+clap = { version = "4.5.17", features = ["derive"] }
+itertools = "0.13.0"
 
 [profile.release]
 codegen-units = 1
